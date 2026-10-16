@@ -1,0 +1,9 @@
+// Cloudflare static site: serves web/ as-is (no Worker code).
+// Deploy: npx wrangler@4 deploy   (after pipeline/build.py has written web/data/)
+{
+  "name": "ev-transfer-lab",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "./web"
+  }
+}

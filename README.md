@@ -55,22 +55,28 @@ player_id,name,length_in,weight_oz,source
 
 Full notes are in the tool's Method section. Caveat: unless a hitter is listed in `data/bat_specs.csv`, some of their EV over expected may be equipment.
 
-## Deploy (GitHub Pages)
+## Deploy (Cloudflare)
 
-`.github/workflows/deploy.yml` builds the data and publishes `web/` to GitHub Pages. It runs:
-- on every push to `main`,
-- daily at 12:00 UTC from March through October (after Statcast's overnight processing),
-- on demand from the Actions tab (**Run workflow**; tick *full refetch* to ignore the cache).
+The site is served by Cloudflare as static assets: `wrangler.jsonc` points at `web/`, and there is no Worker code. It's live at https://ev-transfer-lab.bat-peed.workers.dev.
 
-The raw Savant downloads are cached between runs, so an in-season run only re-fetches the last week. If a fetch fails, the job stops and the previous deploy stays live. Generated data (`web/data/`) and raw downloads (`data/raw/`) are not committed.
+**Deploy by hand** (after a build):
 
-One-time setup:
-1. Create the GitHub repo and push `main`. Pages from a private repo needs a paid GitHub plan; on a free account the repo must be public.
-2. In the repo, go to **Settings → Pages → Build and deployment** and set *Source* to **GitHub Actions**.
-3. Start the first deploy from **Actions → Build and deploy → Run workflow**, or with the push. The first run downloads every season (~15–20 min). The site lands at `https://<owner>.github.io/<repo>/`.
-4. Optional custom domain: in **Settings → Pages → Custom domain**, enter e.g. `lab.pelotero.com`. Then add a DNS CNAME record `lab → <owner>.github.io` and tick *Enforce HTTPS* once the certificate is issued.
+```bash
+.venv/bin/python pipeline/fetch_statcast.py && .venv/bin/python pipeline/build.py
+npx wrangler@4 deploy
+```
 
-To change the refresh schedule, edit the `cron` line in the workflow. To add bat specs, edit `data/bat_specs.csv` and push; the push redeploys.
+Run `npx wrangler@4 login` first if Wrangler isn't signed in on this machine.
+
+**Automatic refresh.** `.github/workflows/deploy.yml` fetches, builds and deploys. It runs on every push to `main`, daily at 12:00 UTC from March through October, and on demand from the Actions tab (tick *full refetch* to ignore the cached raw data). Raw downloads are cached between runs, so an in-season run only re-fetches the last week; if a fetch fails, the live site stays as it was. It needs two repo secrets, set in **Settings → Secrets and variables → Actions**:
+- `CLOUDFLARE_API_TOKEN`: create it in the Cloudflare dashboard under **My Profile → API Tokens → Create Token**, using the *Edit Cloudflare Workers* template.
+- `CLOUDFLARE_ACCOUNT_ID`: shown on the Workers & Pages overview page.
+
+GitHub Actions on the `peloteroapp` account was blocked by a billing lock on 2026-10-16, so until that clears, deploy by hand.
+
+**Custom domain.** In the Cloudflare dashboard, open **Workers & Pages → ev-transfer-lab → Settings → Domains & Routes → Add → Custom domain** (e.g. `lab.pelotero.com`; the domain's DNS must be on Cloudflare). The account's `workers.dev` subdomain (`bat-peed`) can be renamed under **Workers & Pages → Account details**.
+
+To change the refresh schedule, edit the `cron` line in the workflow. To add bat specs, edit `data/bat_specs.csv`, then rebuild and deploy (or push).
 
 ## Layout
 
@@ -79,5 +85,6 @@ pipeline/fetch_statcast.py   Savant downloads -> data/raw/
 pipeline/build.py            models + metrics -> web/data/
 data/bat_specs.csv           optional bat length/weight per hitter
 web/                         static site (D3 7.9.0 vendored)
-.github/workflows/deploy.yml build + GitHub Pages deploy
+wrangler.jsonc               Cloudflare static-assets config (serves web/)
+.github/workflows/deploy.yml scheduled build + Cloudflare deploy
 ```
