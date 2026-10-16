@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EV Transfer Lab</title>
+  <meta name="description" content="Which MLB hitters turn the same bat speed into more exit velocity, and what their swings do differently.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    try { const t = localStorage.getItem("evlab-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="wrap masthead-inner">
+      <div class="brand-row">
+        <span class="eyebrow"><span class="dot"></span>Pelotero research · MLB Statcast</span>
+        <button class="btn ghost sm" id="theme-toggle" type="button" aria-label="Toggle light or dark theme">Theme</button>
+      </div>
+      <h1>Same speed. More exit velo.</h1>
+      <p class="lede">Which hitters turn the same bat speed into more exit velocity, and what their swings do differently. Every batted ball is compared with what the league gets from that exact bat speed against that pitch speed.</p>
+    </div>
+  </header>
+
+  <nav class="filters" aria-label="Filters">
+    <div class="wrap filters-inner">
+      <label class="field">
+        <span>Season</span>
+        <select id="f-season"></select>
+      </label>
+      <label class="field">
+        <span>Min batted balls</span>
+        <select id="f-min">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+          <option value="300">300</option>
+        </select>
+      </label>
+      <div class="field">
+        <span>Avg bat speed (mph)</span>
+        <div class="range-pair">
+          <input id="f-bs-min" type="number" step="0.5" inputmode="decimal" aria-label="Minimum average bat speed">
+          <span class="muted">to</span>
+          <input id="f-bs-max" type="number" step="0.5" inputmode="decimal" aria-label="Maximum average bat speed">
+        </div>
+      </div>
+      <label class="field">
+        <span>Bats</span>
+        <select id="f-bats">
+          <option value="all">All</option>
+          <option value="R">Right</option>
+          <option value="L">Left</option>
+          <option value="S">Switch</option>
+        </select>
+      </label>
+      <label class="field grow">
+        <span>Find a hitter</span>
+        <input id="f-search" type="search" list="player-list" placeholder="Type a name" autocomplete="off">
+        <datalist id="player-list"></datalist>
+      </label>
+      <button class="btn secondary sm" id="f-reset" type="button">Reset</button>
+    </div>
+  </nav>
+
+  <main class="wrap">
+    <section class="tiles" id="hero-tiles" aria-label="Key findings"></section>
+    <p class="note" id="season-note" hidden></p>
+
+    <section class="card" aria-labelledby="scatter-title">
+      <div class="card-head">
+        <div>
+          <h2 id="scatter-title">Bat speed vs exit velo</h2>
+          <p class="sub" id="scatter-sub"></p>
+        </div>
+        <div class="seg" role="group" aria-label="Y axis metric" id="y-toggle">
+          <button type="button" data-y="ev" aria-pressed="true">Avg EV</button>
+          <button type="button" data-y="ev90" aria-pressed="false">EV90</button>
+          <button type="button" data-y="evoe" aria-pressed="false">EV over expected</button>
+        </div>
+      </div>
+      <div class="chart" id="scatter"></div>
+      <div class="legend" id="scatter-legend"></div>
+    </section>
+
+    <section class="card" id="player" hidden aria-labelledby="player-name"></section>
+
+    <section class="card" aria-labelledby="board-title">
+      <div class="card-head">
+        <div>
+          <h2 id="board-title">Who gets more from the same speed</h2>
+          <p class="sub">Sorted by EV over expected. Narrow the bat speed range above to rank hitters against true same-speed peers. Click a row to open the hitter.</p>
+        </div>
+        <div class="seg" role="group" aria-label="Columns" id="col-toggle">
+          <button type="button" data-cols="output" aria-pressed="true">Output</button>
+          <button type="button" data-cols="path" aria-pressed="false">Swing path</button>
+        </div>
+      </div>
+      <div class="table-wrap"><table class="board" id="board"></table></div>
+      <div class="table-foot"><button class="btn secondary sm" id="board-more" type="button">Show all</button><span class="muted" id="board-count"></span></div>
+    </section>
+
+    <section class="card" aria-labelledby="drivers-title">
+      <div class="card-head">
+        <div>
+          <h2 id="drivers-title">What separates them</h2>
+          <p class="sub">Every competitive batted ball, all seasons. Y axis = exit velo relative to what that bat speed and pitch speed usually produce. Shaded band = 95% confidence.</p>
+        </div>
+        <div class="seg" role="group" aria-label="View" id="drivers-view">
+          <button type="button" data-view="chart" aria-pressed="true">Charts</button>
+          <button type="button" data-view="table" aria-pressed="false">Table</button>
+        </div>
+      </div>
+      <div class="multiples" id="drivers"></div>
+      <div class="split">
+        <div>
+          <h3>Where efficient contact lives</h3>
+          <p class="sub">Exit velo vs expected across both face-to-path gaps. Center = ball left along the bat's path.</p>
+          <div class="chart" id="contact-map"></div>
+          <div class="legend" id="contact-legend"></div>
+        </div>
+        <div>
+          <h3>Hitter traits linked to EV over expected</h3>
+          <p class="sub">Correlation across hitter-seasons with <span id="min-stats"></span>+ batted balls.</p>
+          <div class="chart" id="hitter-drivers"></div>
+          <div class="legend" id="hitter-drivers-legend"></div>
+        </div>
+      </div>
+      <h3>Is it a skill?</h3>
+      <p class="sub">Correlation of each metric with itself: season to next season, and odd vs even batted balls inside a season.</p>
+      <div class="table-wrap"><table class="board compact" id="stability"></table></div>
+    </section>
+
+    <section class="card method" aria-labelledby="method-title">
+      <h2 id="method-title">Method</h2>
+      <div id="method"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <span id="generated"></span>
+    <span>Data: Baseball Savant / MLB Statcast. Video via Baseball Savant. Independent analysis, not affiliated with or endorsed by MLB.</span>
+  </footer>
+
+  <div class="tooltip" id="tooltip" role="status" aria-live="polite" hidden></div>
+
+  <script src="vendor/d3.v7.9.0.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
