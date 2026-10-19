@@ -31,7 +31,8 @@ function readHash() {
   if (p.get("cols")) state.cols = p.get("cols");
   state.player = num("player");
   state.comp = num("comp");
-  state.bodyX = BODY_X[p.get("bx")] ? p.get("bx") : "ht";
+  const bx = p.get("bx") === "htwt" ? "wtht" : p.get("bx"); // old links used height ÷ weight
+  state.bodyX = BODY_X[bx] ? bx : "ht";
   state.bodyY = BODY_Y[p.get("by")] ? p.get("by") : "bs";
 }
 function writeHash() {
@@ -151,7 +152,7 @@ const COLS = {
     { key: "n", label: "BBE", f: fmt.int },
     { key: "ht", label: "Height", f: feetInches, title: "Listed height" },
     { key: "wt", label: "Weight", f: fmt.f0, title: "Listed weight (lb)" },
-    { key: "htwt", label: "Ht ÷ Wt", f: d3.format(".3f"), title: "Height (in) ÷ weight (lb). Lower = more mass for the frame" },
+    { key: "wtht", label: "Wt ÷ Ht", f: d3.format(".2f"), title: "Weight (lb) ÷ height (in). Higher = more mass for the frame" },
     { key: "bs", label: "Bat spd", f: fmt.f1 },
     { key: "bs_vs_size", label: "Spd vs size", f: fmt.s1, title: "Bat speed minus what height and weight together predict (mph), fit across hitters in this season and min batted balls" },
     { key: "ev", label: "Avg EV", f: fmt.f1 },
@@ -281,7 +282,7 @@ function renderMethod() {
     p(`Statcast doesn't track bat length or weight, so a heavier bat shows up as extra EV over expected. Bat specs listed in data/bat_specs.csv are run through a collision model. Collision efficiency q = (e − r)/(1 + r), where r = ball mass ÷ the bat's effective mass at the sweet spot (6 in from the tip). Effective mass comes from the bat's weight and its moment of inertia about the center of mass. The bat's shape is scaled by length, calibrated so a ${META.bat.default[0]} in / ${META.bat.default[1]} oz bat gives q ≈ ${fmt.f2(META.bat.q_default)} with e = ${META.bat.cor}. Each batted ball's EV is rescaled to what the standard bat would have produced at the same contact quality (EV × standard max EV ÷ the hitter's max EV). Hitters not listed are assumed to use the standard bat (${META.bat.n_specs} listed now).`),
     p("Length's benefit (a longer lever) is already inside the measured bat speed. At the measuring point it also lowers effective mass, so a longer bat at the same weight reads as slightly less efficient. The model scales one bat shape, so end-loaded or balanced models will differ somewhat."),
     el("h3", {}, "Height and weight"),
-    p("Listed height and weight come from the MLB Stats API roster record: one current value per hitter, not a measurement by season. Height ÷ weight is inches per pound, so lower means more mass for the frame. The body section correlates these with each hitter's averages, using whatever filters are set. Outliers are hitters furthest above or below the straight-line fit, in standard deviations of the misses. Spd vs size and EV vs size in the leaderboard use height and weight together."),
+    p("Listed height and weight come from the MLB Stats API roster record: one current value per hitter, not a measurement by season. Weight ÷ height is pounds per inch, so higher means more mass for the frame. The body section correlates these with each hitter's averages, using whatever filters are set. Outliers are hitters furthest above or below the straight-line fit, in standard deviations of the misses. Spd vs size and EV vs size in the leaderboard use height and weight together."),
     el("h3", {}, "Face-to-path"),
     el("ul", {},
       el("li", {}, "Vertical: launch angle − attack angle. Near 0 means the ball left along the bat's vertical path (centered on the barrel). + = undercut, − = topped."),

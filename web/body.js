@@ -6,7 +6,7 @@ import { frame, axes, nearestLayer, setKids } from "./charts.js";
 export const BODY_X = {
   ht: { label: "Height", unit: "in", axis: "Listed height (in)", f: feetInches, per: "inch", step: 1, jitter: 0.35 },
   wt: { label: "Weight", unit: "lb", axis: "Listed weight (lb)", f: (v) => `${fmt.f0(v)} lb`, per: "10 lb", step: 10, jitter: 1.5 },
-  htwt: { label: "Height ÷ weight", unit: "in/lb", axis: "Height ÷ weight (in per lb; lower = more mass for the frame)", f: (v) => d3.format(".3f")(v), per: "0.01 in/lb", step: 0.01, jitter: 0 },
+  wtht: { label: "Weight ÷ height", unit: "lb/in", axis: "Weight ÷ height (lb per inch; higher = more mass for the frame)", f: (v) => `${d3.format(".2f")(v)} lb/in`, per: "0.1 lb/in", step: 0.1, jitter: 0 },
 };
 export const BODY_Y = {
   bs: { label: "Bat speed", lc: "bat speed", axis: "Avg bat speed (mph)", f: fmt.f1, unit: "mph" },
@@ -70,14 +70,16 @@ function takeaway(cells) {
   const best = (y) => d3.greatest(Object.keys(BODY_X), (x) => Math.abs(r(x, y)));
   const bsX = best("bs"), evoeX = best("evoe");
   if (Number.isNaN(r(bsX, "bs"))) return "Not enough hitters in this filter to correlate.";
-  const ratio = r("htwt", "bs");
+  const ratio = r("wtht", "bs");
   const ht = r("ht", "bs"), wt = r("wt", "bs");
   const lead = Math.abs(ht - wt) < 0.03
     ? `Height and weight track bat speed about equally (r ${fmt.f2(ht)} and ${fmt.f2(wt)}; each explains about ${fmt.pct(Math.max(ht, wt) ** 2)} of the spread).`
     : `${BODY_X[bsX].label} tracks bat speed most closely (r ${fmt.f2(r(bsX, "bs"))}, explaining ${fmt.pct(r(bsX, "bs") ** 2)} of the spread).`;
   return [
     lead,
-    ` The height ÷ weight ratio runs ${ratio < 0 ? "the other way" : "the same way"} (r ${fmt.f2(ratio)}): ${ratio < 0 ? "more mass per inch goes with more bat speed." : "leaner frames go with more bat speed."}`,
+    ratio >= 0
+      ? ` Weight ÷ height shows the same pattern (r ${fmt.f2(ratio)}): more mass per inch goes with more bat speed.`
+      : ` Weight ÷ height runs the other way (r ${fmt.f2(ratio)}): leaner frames go with more bat speed.`,
     ` Against EV over expected, body size explains little (best: ${BODY_X[evoeX].label.toLowerCase()}, r ${fmt.f2(r(evoeX, "evoe"))}). Size mostly buys speed, not better transfer.`,
   ].join("");
 }
@@ -97,7 +99,7 @@ function scatter(container, legendEl, statEl, pts, fit, xKey, yKey, { onSelect, 
   const pad = (xs[1] - xs[0]) * 0.03 || 1;
   const x = d3.scaleLinear().domain([xs[0] - pad, xs[1] + pad]).nice().range([0, w]);
   const y = d3.scaleLinear().domain(d3.extent(pts, (d) => d.y)).nice().range([h, 0]);
-  axes(g, x, y, w, h, { xLabel: X.axis, yLabel: Y.axis, xFmt: xKey === "ht" ? (v) => feetInches(v) : xKey === "htwt" ? d3.format(".2f") : null });
+  axes(g, x, y, w, h, { xLabel: X.axis, yLabel: Y.axis, xFmt: xKey === "ht" ? (v) => feetInches(v) : xKey === "wtht" ? d3.format(".2f") : null });
 
   const ink = cssVar("--ink-2");
   g.append("line").attr("x1", x(x.domain()[0])).attr("x2", x(x.domain()[1]))
@@ -134,7 +136,7 @@ function scatter(container, legendEl, statEl, pts, fit, xKey, yKey, { onSelect, 
       hoverRing.attr("cx", p.px).attr("cy", p.py).attr("visibility", "visible");
       showTip(event, p.name, [
         ["Height · weight", `${feetInches(p.ht)} · ${show(p.wt, fmt.f0)} lb`],
-        ["Height ÷ weight", d3.format(".3f")(p.htwt)],
+        ["Weight ÷ height", `${d3.format(".2f")(p.wtht)} lb/in`],
         [Y.label, `${Y.f(p.y)} ${Y.unit}`],
         [`Expected from ${X.label.toLowerCase()}`, `${Y.f(p.pred)} ${Y.unit}`],
         ["Difference", `${fmt.s1(p.y - p.pred)} ${Y.unit} (${d3.format("+.1f")(p.z)} SD)`],
@@ -156,7 +158,7 @@ function scatter(container, legendEl, statEl, pts, fit, xKey, yKey, { onSelect, 
         el("span", { class: "ramp", style: `display:block;background:linear-gradient(90deg,${stops.join(",")})` }),
         el("span", { class: "ramp-labels" }, el("span", {}, "−2 SD"), el("span", {}, "0"), el("span", {}, "+2 SD")))),
     el("span", { class: "key" }, el("span", { class: "swatch-dot", style: `border:1.5px solid ${cssVar("--ink")}` }), "Outlier (2+ SD)"),
-    xKey !== "htwt" ? el("span", { class: "muted" }, "Points nudged sideways slightly so equal listed sizes don't stack.") : null,
+    xKey !== "wtht" ? el("span", { class: "muted" }, "Points nudged sideways slightly so equal listed sizes don't stack.") : null,
   );
 }
 

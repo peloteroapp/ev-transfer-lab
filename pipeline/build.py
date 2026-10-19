@@ -434,14 +434,14 @@ def attach_leaderboards(h: pd.DataFrame) -> pd.DataFrame:
 
 def attach_people(h: pd.DataFrame) -> pd.DataFrame:
     """Listed height (in), weight (lb) and position from the MLB Stats API (fetch_statcast.py).
-    Height/weight ratio = inches per pound: lower = more mass for the frame."""
+    Weight/height ratio = pounds per inch: higher = more mass for the frame."""
     f = RAW / "people.csv"
     if not f.exists():
         print("  ! no data/raw/people.csv; run fetch_statcast.py for height/weight")
-        return h.assign(ht=np.nan, wt=np.nan, htwt=np.nan, pos="")
+        return h.assign(ht=np.nan, wt=np.nan, wtht=np.nan, pos="")
     p = pd.read_csv(f)[["id", "height_in", "weight_lb", "position"]].rename(
         columns={"height_in": "ht", "weight_lb": "wt", "position": "pos"})
-    p["htwt"] = p.ht / p.wt
+    p["wtht"] = p.wt / p.ht
     h = h.merge(p, on="id", how="left")
     h["pos"] = h.pos.fillna("")
     print(f"height/weight for {h.ht.notna().mean():.0%} of hitter rows")
@@ -675,10 +675,10 @@ def main() -> None:
             "lb_aa", "lb_ad", "lb_tilt", "lb_ideal", "lb_iy", "lb_iy_plate", "lb_stance_y",
             "lb_stance_x", "lb_len", "lb_sq", "lb_blast", "lb_whiff", "lb_fast"]
     h["evoe_se"] = np.sqrt(h.evoe_var)
-    keep += ["evoe_se", "evoe_bat", "bat_adj", "bat_len", "bat_oz", "bat_src", "ht", "wt", "htwt", "pos"]
+    keep += ["evoe_se", "evoe_bat", "bat_adj", "bat_len", "bat_oz", "bat_src", "ht", "wt", "wtht", "pos"]
     nd = {"n": 0, "season": 0, "id": 0, "lb_swings": 0, "eff": 3, "sq": 3, "hh": 3, "ss": 3,
           "xwoba": 3, "lb_ideal": 3, "lb_sq": 3, "lb_blast": 3, "lb_whiff": 3, "lb_fast": 3,
-          "evoe": 2, "evoe_raw": 2, "top": 2, "top_raw": 2, "evoe_se": 2, "evoe_bat": 2, "bat_adj": 2, "ht": 0, "wt": 0, "htwt": 4}
+          "evoe": 2, "evoe_raw": 2, "top": 2, "top_raw": 2, "evoe_se": 2, "evoe_bat": 2, "bat_adj": 2, "ht": 0, "wt": 0, "wtht": 3}
     hitters = []
     for rec in h[keep].to_dict("records"):
         out = {}

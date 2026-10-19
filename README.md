@@ -26,7 +26,7 @@ python3 -m http.server 8765 --directory web   # open http://localhost:8765
 - **Compare**: overlays a comp's swings and pairs matched swings for side-by-side video. Pairs are matched on bat speed, pitch type, pitch speed and location. *Closest hard contact* restricts the comp's side to their own best contact.
 - **Watch**: resolves the pitch's play id via the MLB Stats API and opens the Baseball Savant clip.
 - **Height, weight and the swing**:
-  - A correlation matrix of listed height, weight, and height ÷ weight (inches per pound) against bat speed, avg EV, EV90 and EV over expected. Click a cell to plot that pair.
+  - A correlation matrix of listed height, weight, and weight ÷ height (pounds per inch) against bat speed, avg EV, EV90 and EV over expected. Click a cell to plot that pair.
   - A scatter with a straight-line fit. Dots are colored by how far each hitter sits above or below the line, and 2+ SD outliers are outlined and labeled.
   - Outlier tables ranking who gets more and less than their size predicts.
   - The leaderboard's **Body** columns add *Spd vs size* and *EV vs size*: residuals from height and weight together.
