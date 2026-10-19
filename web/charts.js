@@ -2,9 +2,9 @@
 /* global d3 */
 import { fmt, show, cssVar, divergingScale, showTip, hideTip, quadFit, el, pctOrd, PITCH_NAMES } from "./lib.js";
 
-const setKids = (node, ...kids) => node.replaceChildren(...kids.filter(Boolean));
+export const setKids = (node, ...kids) => node.replaceChildren(...kids.filter(Boolean));
 
-function frame(container, height, margin) {
+export function frame(container, height, margin) {
   const width = Math.max(280, container.clientWidth);
   const svg = d3.select(container).selectAll("svg").data([0]).join("svg")
     .attr("viewBox", `0 0 ${width} ${height}`)
@@ -15,7 +15,7 @@ function frame(container, height, margin) {
   return { svg, g, width, height, ...inner };
 }
 
-function axes(g, x, y, w, h, { xLabel, yLabel, xTicks = 8, yTicks = 6, yFmt, xFmt } = {}) {
+export function axes(g, x, y, w, h, { xLabel, yLabel, xTicks = 8, yTicks = 6, yFmt, xFmt } = {}) {
   g.append("g").attr("class", "grid")
     .call(d3.axisLeft(y).ticks(yTicks).tickSize(-w).tickFormat(""));
   g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`)
@@ -28,7 +28,7 @@ function axes(g, x, y, w, h, { xLabel, yLabel, xTicks = 8, yTicks = 6, yFmt, xFm
 }
 
 /** Pointer -> nearest point within radius, via Delaunay. */
-function nearestLayer(g, w, h, pts, radius, onHover, onLeave, onClick) {
+export function nearestLayer(g, w, h, pts, radius, onHover, onLeave, onClick) {
   const delaunay = d3.Delaunay.from(pts, (p) => p.px, (p) => p.py);
   let current = null;
   const pick = (event) => {

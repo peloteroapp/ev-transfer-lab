@@ -97,10 +97,46 @@
         <div class="seg" role="group" aria-label="Columns" id="col-toggle">
           <button type="button" data-cols="output" aria-pressed="true">Output</button>
           <button type="button" data-cols="path" aria-pressed="false">Swing path</button>
+          <button type="button" data-cols="body" aria-pressed="false">Body</button>
         </div>
       </div>
       <div class="table-wrap"><table class="board" id="board"></table></div>
       <div class="table-foot"><button class="btn secondary sm" id="board-more" type="button">Show all</button><span class="muted" id="board-count"></span></div>
+    </section>
+
+    <section class="card" id="body" aria-labelledby="body-title">
+      <div class="card-head">
+        <div>
+          <h2 id="body-title">Height, weight and the swing</h2>
+          <p class="sub">Listed MLB height and weight against what hitters produce, using the filters above. Height ÷ weight is inches per pound: lower means more mass for the frame (6' 0" and 200 lb = 0.360). Listed sizes are roster values, not measurements, and don't change by season.</p>
+        </div>
+      </div>
+      <h3 class="flush">Correlations</h3>
+      <p class="sub">r for each pair across hitters (−1 to +1; 0 = no relationship). Click a cell to plot it below.</p>
+      <div id="body-matrix"></div>
+      <p class="takeaway" id="body-takeaway"></p>
+      <div class="card-head body-chart-head">
+        <div>
+          <h3 class="flush" id="body-chart-title"></h3>
+          <p class="sub" id="body-stat"></p>
+        </div>
+        <div class="toggles">
+          <div class="seg" role="group" aria-label="Body metric" id="body-x">
+            <button type="button" data-x="ht" aria-pressed="true">Height</button>
+            <button type="button" data-x="wt" aria-pressed="false">Weight</button>
+            <button type="button" data-x="htwt" aria-pressed="false">Ht ÷ Wt</button>
+          </div>
+          <div class="seg" role="group" aria-label="Outcome" id="body-y">
+            <button type="button" data-y="bs" aria-pressed="true">Bat speed</button>
+            <button type="button" data-y="ev" aria-pressed="false">Avg EV</button>
+            <button type="button" data-y="ev90" aria-pressed="false">EV90</button>
+            <button type="button" data-y="evoe" aria-pressed="false">EV over exp</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart" id="body-scatter"></div>
+      <div class="legend" id="body-legend"></div>
+      <div class="split" id="body-outliers"></div>
     </section>
 
     <section class="card" aria-labelledby="drivers-title">

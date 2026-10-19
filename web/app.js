@@ -1,8 +1,9 @@
 /* EV Transfer Lab — state, filters, and page assembly. */
 /* global d3 */
-import { fmt, show, nil, el, ratingWash, divergingScale, cssVar } from "./lib.js";
+import { fmt, show, nil, el, ratingWash, divergingScale, cssVar, feetInches } from "./lib.js";
 import { hitterScatter, driverMultiples, contactMap, correlationBars } from "./charts.js";
 import { renderPlayer, swingsFromRecord } from "./player.js";
+import { renderBody, sizeResiduals, BODY_X, BODY_Y } from "./body.js";
 
 const $ = (id) => document.getElementById(id);
 const PEER_BAND = 1.5;
@@ -11,7 +12,7 @@ const BOARD_LIMIT = 50;
 const state = {
   season: null, min: 100, bsMin: null, bsMax: null, bats: "all",
   y: "ev", cols: "output", player: null, comp: null, all: false,
-  sort: { key: "evoe", dir: -1 }, driversView: "chart",
+  sort: { key: "evoe", dir: -1 }, driversView: "chart", bodyX: "ht", bodyY: "bs",
 };
 
 let META, HITTERS, DRIVERS;
@@ -30,6 +31,8 @@ function readHash() {
   if (p.get("cols")) state.cols = p.get("cols");
   state.player = num("player");
   state.comp = num("comp");
+  state.bodyX = BODY_X[p.get("bx")] ? p.get("bx") : "ht";
+  state.bodyY = BODY_Y[p.get("by")] ? p.get("by") : "bs";
 }
 function writeHash() {
   const p = new URLSearchParams();
@@ -42,6 +45,8 @@ function writeHash() {
   if (state.cols !== "output") p.set("cols", state.cols);
   if (state.player) p.set("player", state.player);
   if (state.comp) p.set("comp", state.comp);
+  if (state.bodyX !== "ht") p.set("bx", state.bodyX);
+  if (state.bodyY !== "bs") p.set("by", state.bodyY);
   history.replaceState(null, "", `#${p}`);
 }
 
@@ -78,6 +83,7 @@ function seasonPool() {
     h.peerPct = n >= 3 ? (below + ties / 2) / n : null;
     h.peerN = n;
   }
+  sizeResiduals(pool);
   return pool;
 }
 function filtered(pool) {
@@ -140,6 +146,17 @@ const COLS = {
     { key: "gap_v", label: "V miss", f: fmt.f1, title: "Median |launch angle − attack angle| (°)" },
     { key: "gap_h", label: "H miss", f: fmt.f1, title: "Median |spray angle − attack direction| (°)" },
     { key: "lb_len", label: "Length", f: fmt.f1, title: "Swing length (ft)" },
+  ],
+  body: [
+    { key: "n", label: "BBE", f: fmt.int },
+    { key: "ht", label: "Height", f: feetInches, title: "Listed height" },
+    { key: "wt", label: "Weight", f: fmt.f0, title: "Listed weight (lb)" },
+    { key: "htwt", label: "Ht ÷ Wt", f: d3.format(".3f"), title: "Height (in) ÷ weight (lb). Lower = more mass for the frame" },
+    { key: "bs", label: "Bat spd", f: fmt.f1 },
+    { key: "bs_vs_size", label: "Spd vs size", f: fmt.s1, title: "Bat speed minus what height and weight together predict (mph), fit across hitters in this season and min batted balls" },
+    { key: "ev", label: "Avg EV", f: fmt.f1 },
+    { key: "ev_vs_size", label: "EV vs size", f: fmt.s1, title: "Average exit velo minus what height and weight together predict (mph)" },
+    { key: "evoe", label: "EV over exp", f: null },
   ],
 };
 
@@ -263,6 +280,8 @@ function renderMethod() {
     el("h3", {}, "Bat-adjusted EV over expected"),
     p(`Statcast doesn't track bat length or weight, so a heavier bat shows up as extra EV over expected. Bat specs listed in data/bat_specs.csv are run through a collision model. Collision efficiency q = (e − r)/(1 + r), where r = ball mass ÷ the bat's effective mass at the sweet spot (6 in from the tip). Effective mass comes from the bat's weight and its moment of inertia about the center of mass. The bat's shape is scaled by length, calibrated so a ${META.bat.default[0]} in / ${META.bat.default[1]} oz bat gives q ≈ ${fmt.f2(META.bat.q_default)} with e = ${META.bat.cor}. Each batted ball's EV is rescaled to what the standard bat would have produced at the same contact quality (EV × standard max EV ÷ the hitter's max EV). Hitters not listed are assumed to use the standard bat (${META.bat.n_specs} listed now).`),
     p("Length's benefit (a longer lever) is already inside the measured bat speed. At the measuring point it also lowers effective mass, so a longer bat at the same weight reads as slightly less efficient. The model scales one bat shape, so end-loaded or balanced models will differ somewhat."),
+    el("h3", {}, "Height and weight"),
+    p("Listed height and weight come from the MLB Stats API roster record: one current value per hitter, not a measurement by season. Height ÷ weight is inches per pound, so lower means more mass for the frame. The body section correlates these with each hitter's averages, using whatever filters are set. Outliers are hitters furthest above or below the straight-line fit, in standard deviations of the misses. Spd vs size and EV vs size in the leaderboard use height and weight together."),
     el("h3", {}, "Face-to-path"),
     el("ul", {},
       el("li", {}, "Vertical: launch angle − attack angle. Near 0 means the ball left along the bat's vertical path (centered on the barrel). + = undercut, − = topped."),
@@ -280,6 +299,18 @@ function renderMethod() {
   $("generated").textContent = `Games through ${META.dataThrough} · built ${META.generated.replace("T", " ")}`;
 }
 
+/* ------------------------------------------------------------------ body size */
+function renderBodySection(rows) {
+  $("body-chart-title").textContent = `${BODY_X[state.bodyX].label} vs ${BODY_Y[state.bodyY].lc}`;
+  renderBody({
+    matrixEl: $("body-matrix"), takeawayEl: $("body-takeaway"), scatterEl: $("body-scatter"),
+    legendEl: $("body-legend"), statEl: $("body-stat"), outliersEl: $("body-outliers"),
+  }, rows, state, {
+    onPick: (x, y) => { state.bodyX = x; state.bodyY = y; syncControls(); writeHash(); renderBodySection(rows); },
+    onSelect: (id) => selectPlayer(id, true),
+  });
+}
+
 /* ------------------------------------------------------------------ assemble */
 async function renderMain() {
   const pool = seasonPool();
@@ -290,6 +321,7 @@ async function renderMain() {
     onSelect: (id) => selectPlayer(id, true),
   });
   renderBoard(rows);
+  renderBodySection(rows);
   const names = [...new Map(pool.map((h) => [h.name, h])).values()].sort((a, b) => a.name.localeCompare(b.name));
   $("player-list").replaceChildren(...names.map((h) => el("option", { value: h.name })));
   $("f-bs-min").placeholder = rows.length ? fmt.f1(d3.min(pool, (h) => h.bs)) : "";
@@ -306,6 +338,8 @@ function syncControls() {
   for (const b of $("y-toggle").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.y === state.y));
   for (const b of $("col-toggle").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.cols === state.cols));
   for (const b of $("drivers-view").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.view === state.driversView));
+  for (const b of $("body-x").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === state.bodyX));
+  for (const b of $("body-y").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.y === state.bodyY));
 }
 
 function bindControls() {
@@ -324,12 +358,14 @@ function bindControls() {
     if (hit) { e.target.value = ""; selectPlayer(hit.id, true); }
   });
   $("f-reset").addEventListener("click", () => {
-    Object.assign(state, { min: 100, bsMin: null, bsMax: null, bats: "all", y: "ev", cols: "output", player: null, comp: null, all: false, sort: { key: "evoe", dir: -1 } });
+    Object.assign(state, { min: 100, bsMin: null, bsMax: null, bats: "all", y: "ev", cols: "output", player: null, comp: null, all: false, sort: { key: "evoe", dir: -1 }, bodyX: "ht", bodyY: "bs" });
     syncControls(); rerender();
   });
   $("y-toggle").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.y = b.dataset.y; syncControls(); writeHash(); renderMain(); });
   $("col-toggle").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.cols = b.dataset.cols; syncControls(); writeHash(); renderMain(); });
   $("drivers-view").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.driversView = b.dataset.view; syncControls(); renderDrivers(); });
+  $("body-x").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.bodyX = b.dataset.x; syncControls(); writeHash(); renderBodySection(filtered(seasonPool())); });
+  $("body-y").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.bodyY = b.dataset.y; syncControls(); writeHash(); renderBodySection(filtered(seasonPool())); });
   $("board-more").addEventListener("click", () => { state.all = !state.all; renderMain(); });
   $("theme-toggle").addEventListener("click", () => {
     const dark = cssVar("color-scheme") === "dark" || document.documentElement.dataset.theme === "dark";

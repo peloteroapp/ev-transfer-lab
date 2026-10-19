@@ -1,4 +1,5 @@
-"""Download Statcast batted-ball (pitch-level) data and Savant bat-tracking leaderboards.
+"""Download Statcast batted-ball (pitch-level) data, Savant bat-tracking leaderboards, and each
+hitter's listed height/weight from the MLB Stats API.
 
 Raw files land in data/raw/ and are cached. Re-running fetches what is missing, plus anything
 from the last --refresh-days (Statcast keeps correcting recent games), so a daily in-season run
@@ -10,6 +11,8 @@ only re-downloads the current window.
 
 import argparse
 import io
+import json
+import re
 import sys
 import time
 import urllib.parse
@@ -22,6 +25,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 SAVANT = "https://baseballsavant.mlb.com"
+STATSAPI_PEOPLE = "https://statsapi.mlb.com/api/v1/people"
 ROW_CAP = 25_000  # Savant's statcast_search CSV export truncates at this many rows
 WINDOW_DAYS = 10
 UA = {"User-Agent": "Mozilla/5.0 (batSpeed research pipeline)"}
@@ -125,6 +129,39 @@ def fetch_leaderboards(season: int, today: date, refresh_days: int) -> None:
         time.sleep(1.5)
 
 
+def parse_height(text: str | None) -> float | None:
+    """MLB lists height as 6' 7\" -> 79 inches."""
+    m = re.match(r"\s*(\d+)'\s*(\d+)?", text or "")
+    return int(m.group(1)) * 12 + int(m.group(2) or 0) if m else None
+
+
+def fetch_people(seasons: list[int]) -> None:
+    """Listed (roster) height and weight for every hitter in the batted-ball files. These are the
+    current listed values, not measurements by season. Re-fetched in full each run (a few requests)."""
+    ids = set()
+    for season in seasons:
+        for f in (RAW / "statcast" / str(season)).glob("*.csv"):
+            ids |= set(pd.read_csv(f, usecols=["batter"]).batter.dropna().astype(int))
+    ids = sorted(ids)
+    rows = []
+    for i in range(0, len(ids), 150):
+        chunk = ids[i:i + 150]
+        data = json.loads(get(f"{STATSAPI_PEOPLE}?personIds={','.join(map(str, chunk))}"))
+        for p in data.get("people", []):
+            rows.append({
+                "id": p["id"], "name": p.get("fullName"),
+                "height_in": parse_height(p.get("height")), "weight_lb": p.get("weight"),
+                "birth_date": p.get("birthDate"), "bats": (p.get("batSide") or {}).get("code"),
+                "position": (p.get("primaryPosition") or {}).get("abbreviation"),
+            })
+        time.sleep(0.5)
+    out = RAW / "people.csv"
+    tmp = out.with_suffix(".tmp")
+    pd.DataFrame(rows).to_csv(tmp, index=False)
+    tmp.replace(out)
+    print(f"people: height/weight for {len(rows):,} of {len(ids):,} hitters")
+
+
 def main() -> None:
     today = date.today()
     ap = argparse.ArgumentParser()
@@ -136,6 +173,7 @@ def main() -> None:
     for season in args.seasons:
         fetch_leaderboards(season, today, args.refresh_days)
         fetch_season(season, today, args.refresh_days)
+    fetch_people(args.seasons)
     print("done")
 
 

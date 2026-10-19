@@ -291,6 +291,7 @@ table.board { border-collapse: collapse; width: 100%; font-size: 14px; font-vari
   padding: 5px 9px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2);
 }
 .tag.accent { background: var(--acid); color: var(--navy); }
+.tag.flag { background: transparent; border: 1.5px solid var(--ink); color: var(--ink); }
 .tag.comp { background: transparent; border: 1.5px solid var(--neg); color: var(--ink); }
 .player-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 18px 0 8px; }
 @media (max-width: 1100px) { .player-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -331,3 +332,26 @@ table.board { border-collapse: collapse; width: 100%; font-size: 14px; font-vari
 .empty { color: var(--muted); font-size: 14px; padding: 16px 0; }
 .loading { opacity: .5; transition: opacity .2s var(--ease); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- body size section */
+h3.flush { margin-top: 0; }
+.body-chart-head { margin-top: 26px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+table.corr-matrix { border-collapse: separate; border-spacing: 4px; font-variant-numeric: tabular-nums; }
+.corr-matrix th { font: 700 12px/1.1 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 4px 8px; white-space: nowrap; }
+.corr-matrix thead th { text-align: center; }
+.corr-matrix tbody th { text-align: right; }
+.corr-matrix td { padding: 0; }
+.corr-cell {
+  width: 100%; min-width: 84px; padding: 11px 10px; border: 0; border-radius: 8px; cursor: pointer;
+  font: 700 16px/1 var(--body); font-variant-numeric: tabular-nums;
+}
+.corr-cell:hover { filter: brightness(1.05); }
+.corr-cell.on { box-shadow: inset 0 0 0 3px var(--select-ring); }
+.corr-cell:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+.takeaway { margin-top: 12px; font-size: 15px; color: var(--ink-2); max-width: 86ch; }
+#body-outliers { margin-top: 8px; }
+#body-outliers .board tbody tr { cursor: pointer; }
+.player-head .range-pair { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.player-head select { min-width: 0; max-width: 100%; flex: 1 1 180px; }
+@media (max-width: 640px) { .player-head > div { min-width: 0; max-width: 100%; } }

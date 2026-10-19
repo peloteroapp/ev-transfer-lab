@@ -1,6 +1,6 @@
 /* Player panel: swing-level view, swings to watch, path vs same-speed peers, comps. */
 /* global d3 */
-import { fmt, show, nil, el, watchButton, pctOrd, PITCH_NAMES } from "./lib.js";
+import { fmt, show, nil, el, watchButton, pctOrd, feetInches, PITCH_NAMES } from "./lib.js";
 import { swingScatter, peerStrip } from "./charts.js";
 
 const PEER_BAND = 1.5; // mph of average bat speed either side
@@ -102,6 +102,7 @@ export function renderPlayer(section, ctx) {
         el("span", { class: "tag accent" }, seasonLabel),
         el("span", { class: "tag" }, player.team),
         el("span", { class: "tag" }, `Bats ${player.bats}`),
+        nil(player.ht) ? null : el("span", { class: "tag", title: "Listed height and weight" }, `${feetInches(player.ht)} · ${fmt.f0(player.wt)} lb`),
         el("span", { class: "tag" }, `${fmt.int(player.n)} batted balls`),
         el("span", { class: "tag", title: player.bat_src === "assumed" ? "Not in data/bat_specs.csv" : `Source: ${player.bat_src}` },
           `Bat ${fmt.f0(player.bat_len)} in / ${fmt.f0(player.bat_oz)} oz${player.bat_src === "assumed" ? " (assumed)" : ""}`),

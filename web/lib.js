@@ -91,6 +91,45 @@ export function quadFit(xs, ys, ws) {
   const beta = solve3(S, T);
   return (x0) => { const x = x0 - mx; return beta[0] + beta[1] * x + beta[2] * x * x; };
 }
+/** Least squares y = a + b1 x1 + b2 x2 (x2 optional). Returns { predict, r2 }. */
+export function linFit(x1, y, x2 = null) {
+  const cols = (i) => (x2 ? [1, x1[i], x2[i]] : [1, x1[i], 0]);
+  const S = Array.from({ length: 3 }, () => [0, 0, 0]);
+  const T = [0, 0, 0];
+  y.forEach((yi, i) => {
+    const v = cols(i);
+    for (let a = 0; a < 3; a++) {
+      T[a] += v[a] * yi;
+      for (let b = 0; b < 3; b++) S[a][b] += v[a] * v[b];
+    }
+  });
+  if (!x2) S[2][2] = 1; // single predictor: pin the unused coefficient to 0
+  const beta = solve3(S, T);
+  const predict = (a, b = 0) => beta[0] + beta[1] * a + beta[2] * b;
+  const yhat = y.map((_, i) => predict(x1[i], x2 ? x2[i] : 0));
+  const my = d3.mean(y);
+  const r2 = 1 - d3.sum(y, (yi, i) => (yi - yhat[i]) ** 2) / d3.sum(y, (yi) => (yi - my) ** 2);
+  return { predict, beta, r2 };
+}
+
+/** Pearson r with a Fisher-z 95% interval. */
+export function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 5) return { r: NaN, n, lo: NaN, hi: NaN };
+  const mx = d3.mean(xs), my = d3.mean(ys);
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = xs[i] - mx, dy = ys[i] - my;
+    sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
+  }
+  const r = sxy / Math.sqrt(sxx * syy);
+  const z = Math.atanh(r), se = 1 / Math.sqrt(n - 3);
+  return { r, n, lo: Math.tanh(z - 1.96 * se), hi: Math.tanh(z + 1.96 * se) };
+}
+
+/** 79 -> 6' 7" */
+export const feetInches = (inches) => (nil(inches) ? "–" : `${Math.floor(inches / 12)}' ${Math.round(inches % 12)}"`);
+
 function solve3(A, b) {
   const M = A.map((r, i) => [...r, b[i]]);
   for (let c = 0; c < 3; c++) {

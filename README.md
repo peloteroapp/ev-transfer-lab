@@ -25,6 +25,12 @@ python3 -m http.server 8765 --directory web   # open http://localhost:8765
   - Same-speed comps.
 - **Compare**: overlays a comp's swings and pairs matched swings for side-by-side video. Pairs are matched on bat speed, pitch type, pitch speed and location. *Closest hard contact* restricts the comp's side to their own best contact.
 - **Watch**: resolves the pitch's play id via the MLB Stats API and opens the Baseball Savant clip.
+- **Height, weight and the swing**:
+  - A correlation matrix of listed height, weight, and height ÷ weight (inches per pound) against bat speed, avg EV, EV90 and EV over expected. Click a cell to plot that pair.
+  - A scatter with a straight-line fit. Dots are colored by how far each hitter sits above or below the line, and 2+ SD outliers are outlined and labeled.
+  - Outlier tables ranking who gets more and less than their size predicts.
+  - The leaderboard's **Body** columns add *Spd vs size* and *EV vs size*: residuals from height and weight together.
+  - Everything follows the filter bar.
 - **What separates them**: swing-level curves of EV vs expected against each path variable, a face-to-path contact map, hitter-level correlations, and year-to-year stability.
 
 ## Bat specs (optional)
@@ -52,6 +58,8 @@ player_id,name,length_in,weight_oz,source
   - Vertical = launch angle − attack angle.
   - Horizontal = spray − attack direction, with pull negative.
   - Plane match = attack angle + vertical approach angle at the plate.
+
+- **Height and weight.** Listed roster values from the MLB Stats API (`data/raw/people.csv`, refreshed on every fetch). There is one current value per hitter, not a measurement by season.
 
 Full notes are in the tool's Method section. Caveat: unless a hitter is listed in `data/bat_specs.csv`, some of their EV over expected may be equipment.
 
@@ -81,7 +89,7 @@ To change the refresh schedule, edit the `cron` line in the workflow. To add bat
 ## Layout
 
 ```
-pipeline/fetch_statcast.py   Savant downloads -> data/raw/
+pipeline/fetch_statcast.py   Savant downloads + MLB height/weight -> data/raw/
 pipeline/build.py            models + metrics -> web/data/
 data/bat_specs.csv           optional bat length/weight per hitter
 web/                         static site (D3 7.9.0 vendored)
