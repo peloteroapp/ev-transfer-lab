@@ -2,6 +2,7 @@
 /* global d3 */
 import { fmt, show, nil, el, watchButton, pctOrd, feetInches, PITCH_NAMES } from "./lib.js";
 import { swingScatter, peerStrip } from "./charts.js";
+import { angle as stanceAngle } from "./stance.js";
 
 const PEER_BAND = 1.5; // mph of average bat speed either side
 const COMP_BAND = 1.0;
@@ -103,6 +104,7 @@ export function renderPlayer(section, ctx) {
         el("span", { class: "tag" }, player.team),
         el("span", { class: "tag" }, `Bats ${player.bats}`),
         nil(player.ht) ? null : el("span", { class: "tag", title: "Listed height and weight" }, `${feetInches(player.ht)} · ${fmt.f0(player.wt)} lb`),
+        nil(player.st_feet) ? null : el("span", { class: "tag", title: "Savant batting stance: feet apart and stance angle" }, `Stance ${fmt.f0(player.st_feet)} in wide · ${stanceAngle(player.st_angle)}`),
         el("span", { class: "tag" }, `${fmt.int(player.n)} batted balls`),
         el("span", { class: "tag", title: player.bat_src === "assumed" ? "Not in data/bat_specs.csv" : `Source: ${player.bat_src}` },
           `Bat ${fmt.f0(player.bat_len)} in / ${fmt.f0(player.bat_oz)} oz${player.bat_src === "assumed" ? " (assumed)" : ""}`),

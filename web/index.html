@@ -98,6 +98,7 @@
           <button type="button" data-cols="output" aria-pressed="true">Output</button>
           <button type="button" data-cols="path" aria-pressed="false">Swing path</button>
           <button type="button" data-cols="body" aria-pressed="false">Body</button>
+          <button type="button" data-cols="stance" aria-pressed="false">Stance</button>
         </div>
       </div>
       <div class="table-wrap"><table class="board" id="board"></table></div>
@@ -136,7 +137,42 @@
       </div>
       <div class="chart" id="body-scatter"></div>
       <div class="legend" id="body-legend"></div>
-      <div class="split" id="body-outliers"></div>
+      <div class="split trait-tables" id="body-outliers"></div>
+    </section>
+
+    <section class="card" id="stance" aria-labelledby="stance-title">
+      <div class="card-head">
+        <div>
+          <h2 id="stance-title">Batting stance</h2>
+          <p class="sub">Savant's stance tracking, measured one second before the pitch is released: depth in the box (inches behind the front of the plate), distance off the plate (inches from its inside edge), distance between the feet, and stance angle (negative = open, positive = closed). Switch hitters are averaged across both sides by batted balls. Uses the filters above.</p>
+        </div>
+      </div>
+      <h3 class="flush">Correlations</h3>
+      <p class="sub">r for each pair across hitters (−1 to +1; 0 = no relationship). Click a cell to plot it below.</p>
+      <div id="stance-matrix"></div>
+      <p class="takeaway" id="stance-takeaway"></p>
+      <div class="card-head body-chart-head">
+        <div>
+          <h3 class="flush" id="stance-chart-title"></h3>
+          <p class="sub" id="stance-stat"></p>
+        </div>
+        <div class="toggles">
+          <div class="seg" role="group" aria-label="Stance measure" id="stance-x">
+            <button type="button" data-x="st_depth" aria-pressed="false">Depth</button>
+            <button type="button" data-x="st_off" aria-pressed="true">Off plate</button>
+            <button type="button" data-x="st_feet" aria-pressed="false">Feet apart</button>
+            <button type="button" data-x="st_angle" aria-pressed="false">Angle</button>
+          </div>
+          <div class="seg" role="group" aria-label="Outcome" id="stance-y">
+            <button type="button" data-y="bs" aria-pressed="true">Bat speed</button>
+            <button type="button" data-y="evoe" aria-pressed="false">EV over exp</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart" id="stance-scatter"></div>
+      <div class="legend" id="stance-legend"></div>
+      <div class="split trait-tables" id="stance-outliers"></div>
+      <div class="split trait-tables" id="stance-extremes"></div>
     </section>
 
     <section class="card" aria-labelledby="drivers-title">

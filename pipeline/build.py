@@ -448,6 +448,40 @@ def attach_people(h: pd.DataFrame) -> pd.DataFrame:
     return h
 
 
+STANCE_COLS = {
+    "avg_batter_y_position": "st_depth",   # in behind the front of the plate (higher = deeper)
+    "avg_batter_x_position": "st_off",     # in off the plate's inside edge (higher = farther)
+    "avg_foot_sep": "st_feet",             # in between the feet
+    "avg_stance_angle": "st_angle",        # deg; negative = open, positive = closed
+}
+
+
+def attach_stance(h: pd.DataFrame, d: pd.DataFrame) -> pd.DataFrame:
+    """Savant batting stance per hitter-season. Switch hitters have one row per side, averaged by
+    their batted balls from each side; pooled rows average seasons by batted balls."""
+    frames = []
+    for season in sorted(s for s in h.season.unique() if s):
+        f = RAW / "leaderboards" / f"batting_stance_{season}.csv"
+        if f.exists():
+            frames.append(pd.read_csv(f).assign(season=season))
+    if not frames:
+        print("  ! no batting stance files; run fetch_statcast.py")
+        return h.assign(**{c: np.nan for c in STANCE_COLS.values()})
+    st = pd.concat(frames, ignore_index=True).rename(columns=STANCE_COLS)
+    side_n = d.groupby(["season", "batter", "stand"]).size().rename("w").reset_index()
+    st = st.merge(side_n, left_on=["season", "id", "side"], right_on=["season", "batter", "stand"], how="left")
+    st["w"] = st.w.fillna(1)
+    cols = list(STANCE_COLS.values())
+    wavg = lambda g: pd.Series({c: np.average(g[c], weights=g.w) for c in cols} | {"w": g.w.sum()})  # noqa: E731
+    per_season = st.groupby(["season", "id"]).apply(wavg, include_groups=False).reset_index()
+    h = h.merge(per_season.drop(columns="w"), on=["season", "id"], how="left")
+    pooled = per_season.groupby("id").apply(wavg, include_groups=False).reset_index().drop(columns="w")
+    mask = h.season == 0
+    h.loc[mask, cols] = h.loc[mask, ["id"]].merge(pooled, on="id", how="left")[cols].values
+    print(f"batting stance for {h.st_feet.notna().mean():.0%} of hitter rows")
+    return h
+
+
 # ---------------------------------------------------------------- study outputs
 
 
@@ -657,6 +691,7 @@ def main() -> None:
     h = hitter_table(d, rng, specs)
     h = attach_leaderboards(h)
     h = attach_people(h)
+    h = attach_stance(h, d)
     stab = stability(h, d, rng)
     print("stability", json.dumps(stab, indent=1))
 
@@ -675,7 +710,7 @@ def main() -> None:
             "lb_aa", "lb_ad", "lb_tilt", "lb_ideal", "lb_iy", "lb_iy_plate", "lb_stance_y",
             "lb_stance_x", "lb_len", "lb_sq", "lb_blast", "lb_whiff", "lb_fast"]
     h["evoe_se"] = np.sqrt(h.evoe_var)
-    keep += ["evoe_se", "evoe_bat", "bat_adj", "bat_len", "bat_oz", "bat_src", "ht", "wt", "wtht", "pos"]
+    keep += ["evoe_se", "evoe_bat", "bat_adj", "bat_len", "bat_oz", "bat_src", "ht", "wt", "wtht", "pos", "st_depth", "st_off", "st_feet", "st_angle"]
     nd = {"n": 0, "season": 0, "id": 0, "lb_swings": 0, "eff": 3, "sq": 3, "hh": 3, "ss": 3,
           "xwoba": 3, "lb_ideal": 3, "lb_sq": 3, "lb_blast": 3, "lb_whiff": 3, "lb_fast": 3,
           "evoe": 2, "evoe_raw": 2, "top": 2, "top_raw": 2, "evoe_se": 2, "evoe_bat": 2, "bat_adj": 2, "ht": 0, "wt": 0, "wtht": 3}

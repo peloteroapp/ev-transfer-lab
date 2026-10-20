@@ -4,6 +4,7 @@ import { fmt, show, nil, el, ratingWash, divergingScale, cssVar, feetInches } fr
 import { hitterScatter, driverMultiples, contactMap, correlationBars } from "./charts.js";
 import { renderPlayer, swingsFromRecord } from "./player.js";
 import { renderBody, sizeResiduals, BODY_X, BODY_Y } from "./body.js";
+import { renderStance, STANCE_X, STANCE_Y, angle as stanceAngle } from "./stance.js";
 
 const $ = (id) => document.getElementById(id);
 const PEER_BAND = 1.5;
@@ -13,6 +14,7 @@ const state = {
   season: null, min: 100, bsMin: null, bsMax: null, bats: "all",
   y: "ev", cols: "output", player: null, comp: null, all: false,
   sort: { key: "evoe", dir: -1 }, driversView: "chart", bodyX: "ht", bodyY: "bs",
+  stanceX: "st_off", stanceY: "bs",
 };
 
 let META, HITTERS, DRIVERS;
@@ -34,6 +36,8 @@ function readHash() {
   const bx = p.get("bx") === "htwt" ? "wtht" : p.get("bx"); // old links used height ÷ weight
   state.bodyX = BODY_X[bx] ? bx : "ht";
   state.bodyY = BODY_Y[p.get("by")] ? p.get("by") : "bs";
+  state.stanceX = STANCE_X[p.get("sx")] ? p.get("sx") : "st_off";
+  state.stanceY = STANCE_Y[p.get("sy")] ? p.get("sy") : "bs";
 }
 function writeHash() {
   const p = new URLSearchParams();
@@ -48,6 +52,8 @@ function writeHash() {
   if (state.comp) p.set("comp", state.comp);
   if (state.bodyX !== "ht") p.set("bx", state.bodyX);
   if (state.bodyY !== "bs") p.set("by", state.bodyY);
+  if (state.stanceX !== "st_off") p.set("sx", state.stanceX);
+  if (state.stanceY !== "bs") p.set("sy", state.stanceY);
   history.replaceState(null, "", `#${p}`);
 }
 
@@ -158,6 +164,16 @@ const COLS = {
     { key: "ev", label: "Avg EV", f: fmt.f1 },
     { key: "ev_vs_size", label: "EV vs size", f: fmt.s1, title: "Average exit velo minus what height and weight together predict (mph)" },
     { key: "evoe", label: "EV over exp", f: null },
+  ],
+  stance: [
+    { key: "n", label: "BBE", f: fmt.int },
+    { key: "bs", label: "Bat spd", f: fmt.f1 },
+    { key: "evoe", label: "EV over exp", f: null },
+    { key: "st_depth", label: "Depth", f: fmt.f1, title: "Depth in box: inches behind the front of the plate (higher = deeper)" },
+    { key: "st_off", label: "Off plate", f: fmt.f1, title: "Distance off the plate: inches from its inside edge" },
+    { key: "st_feet", label: "Feet apart", f: fmt.f1, title: "Distance between the feet (in)" },
+    { key: "st_angle", label: "Angle", f: stanceAngle, title: "Stance angle: negative = open, positive = closed (°)" },
+    { key: "ht", label: "Height", f: feetInches, title: "Listed height" },
   ],
 };
 
@@ -283,6 +299,8 @@ function renderMethod() {
     p("Length's benefit (a longer lever) is already inside the measured bat speed. At the measuring point it also lowers effective mass, so a longer bat at the same weight reads as slightly less efficient. The model scales one bat shape, so end-loaded or balanced models will differ somewhat."),
     el("h3", {}, "Height and weight"),
     p("Listed height and weight come from the MLB Stats API roster record: one current value per hitter, not a measurement by season. Weight ÷ height is pounds per inch, so higher means more mass for the frame. The body section correlates these with each hitter's averages, using whatever filters are set. Outliers are hitters furthest above or below the straight-line fit, in standard deviations of the misses. Spd vs size and EV vs size in the leaderboard use height and weight together."),
+    el("h3", {}, "Batting stance"),
+    p("Savant's batting stance comes from Hawk-Eye pose tracking, measured one second before the pitch is released. Depth is inches from the front of the plate back to the midpoint of the hips. Distance off the plate is from its inside edge. Foot separation is inches between the feet. Stance angle is the line through the feet relative to straight at the pitcher, negative = open and positive = closed. Values are per season; switch hitters are averaged across both sides by their batted balls, and the all-seasons view averages seasons by batted balls. The summary checks the strongest stance link against height, since bigger hitters stand differently and also swing faster."),
     el("h3", {}, "Face-to-path"),
     el("ul", {},
       el("li", {}, "Vertical: launch angle − attack angle. Near 0 means the ball left along the bat's vertical path (centered on the barrel). + = undercut, − = topped."),
@@ -312,6 +330,18 @@ function renderBodySection(rows) {
   });
 }
 
+/* ------------------------------------------------------------------ batting stance */
+function renderStanceSection(rows) {
+  $("stance-chart-title").textContent = `${STANCE_X[state.stanceX].label} vs ${STANCE_Y[state.stanceY].lc}`;
+  renderStance({
+    matrixEl: $("stance-matrix"), takeawayEl: $("stance-takeaway"), scatterEl: $("stance-scatter"),
+    legendEl: $("stance-legend"), statEl: $("stance-stat"), outliersEl: $("stance-outliers"), extremesEl: $("stance-extremes"),
+  }, rows, state, {
+    onPick: (x, y) => { state.stanceX = x; state.stanceY = y; syncControls(); writeHash(); renderStanceSection(rows); },
+    onSelect: (id) => selectPlayer(id, true),
+  });
+}
+
 /* ------------------------------------------------------------------ assemble */
 async function renderMain() {
   const pool = seasonPool();
@@ -323,6 +353,7 @@ async function renderMain() {
   });
   renderBoard(rows);
   renderBodySection(rows);
+  renderStanceSection(rows);
   const names = [...new Map(pool.map((h) => [h.name, h])).values()].sort((a, b) => a.name.localeCompare(b.name));
   $("player-list").replaceChildren(...names.map((h) => el("option", { value: h.name })));
   $("f-bs-min").placeholder = rows.length ? fmt.f1(d3.min(pool, (h) => h.bs)) : "";
@@ -341,6 +372,8 @@ function syncControls() {
   for (const b of $("drivers-view").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.view === state.driversView));
   for (const b of $("body-x").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === state.bodyX));
   for (const b of $("body-y").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.y === state.bodyY));
+  for (const b of $("stance-x").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === state.stanceX));
+  for (const b of $("stance-y").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.y === state.stanceY));
 }
 
 function bindControls() {
@@ -359,7 +392,7 @@ function bindControls() {
     if (hit) { e.target.value = ""; selectPlayer(hit.id, true); }
   });
   $("f-reset").addEventListener("click", () => {
-    Object.assign(state, { min: 100, bsMin: null, bsMax: null, bats: "all", y: "ev", cols: "output", player: null, comp: null, all: false, sort: { key: "evoe", dir: -1 }, bodyX: "ht", bodyY: "bs" });
+    Object.assign(state, { min: 100, bsMin: null, bsMax: null, bats: "all", y: "ev", cols: "output", player: null, comp: null, all: false, sort: { key: "evoe", dir: -1 }, bodyX: "ht", bodyY: "bs", stanceX: "st_off", stanceY: "bs" });
     syncControls(); rerender();
   });
   $("y-toggle").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.y = b.dataset.y; syncControls(); writeHash(); renderMain(); });
@@ -367,6 +400,8 @@ function bindControls() {
   $("drivers-view").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.driversView = b.dataset.view; syncControls(); renderDrivers(); });
   $("body-x").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.bodyX = b.dataset.x; syncControls(); writeHash(); renderBodySection(filtered(seasonPool())); });
   $("body-y").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.bodyY = b.dataset.y; syncControls(); writeHash(); renderBodySection(filtered(seasonPool())); });
+  $("stance-x").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.stanceX = b.dataset.x; syncControls(); writeHash(); renderStanceSection(filtered(seasonPool())); });
+  $("stance-y").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state.stanceY = b.dataset.y; syncControls(); writeHash(); renderStanceSection(filtered(seasonPool())); });
   $("board-more").addEventListener("click", () => { state.all = !state.all; renderMain(); });
   $("theme-toggle").addEventListener("click", () => {
     const dark = cssVar("color-scheme") === "dark" || document.documentElement.dataset.theme === "dark";

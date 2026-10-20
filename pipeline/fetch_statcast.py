@@ -1,5 +1,6 @@
 """Download Statcast batted-ball (pitch-level) data, Savant bat-tracking leaderboards, and each
-hitter's listed height/weight from the MLB Stats API.
+hitter's listed height/weight from the MLB Stats API. Leaderboards include Savant's batting stance
+(depth in box, distance off plate, foot separation, stance angle).
 
 Raw files land in data/raw/ and are cached. Re-running fetches what is missing, plus anything
 from the last --refresh-days (Statcast keeps correcting recent games), so a daily in-season run
@@ -116,6 +117,12 @@ def fetch_leaderboards(season: int, today: date, refresh_days: int) -> None:
         "swing_path": (
             "/leaderboard/bat-tracking/swing-path-attack-angle",
             {"seasonStart": str(season), "seasonEnd": str(season), "groupBy": ""},
+        ),
+        # Batting stance (Hawk-Eye pose, 1 s before release). Only seasonStart/End filter this export;
+        # `season`/`year` are ignored and silently return the current season.
+        "batting_stance": (
+            "/visuals/batting-stance",
+            {"seasonStart": str(season), "seasonEnd": str(season)},
         ),
     }
     stale = season_bounds(season)[1] + timedelta(days=10) >= today - timedelta(days=refresh_days)

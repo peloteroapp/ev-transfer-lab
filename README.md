@@ -31,6 +31,11 @@ python3 -m http.server 8765 --directory web   # open http://localhost:8765
   - Outlier tables ranking who gets more and less than their size predicts.
   - The leaderboard's **Body** columns add *Spd vs size* and *EV vs size*: residuals from height and weight together.
   - Everything follows the filter bar.
+- **Batting stance**: Savant's Hawk-Eye stance (measured 1 s before release): depth in the box, distance off the plate, foot separation, and stance angle (negative = open).
+  - The same layout as the body section, against bat speed and EV over expected: correlation matrix, scatter with flagged outliers, and over/under-performer tables.
+  - Plus the most extreme stances each way (widest/narrowest, most open/closed, and so on), with each hitter's outcomes and percentiles.
+  - The summary checks the strongest stance link against height.
+  - The leaderboard's **Stance** columns and the hitter panel's stance tag show each hitter's setup.
 - **What separates them**: swing-level curves of EV vs expected against each path variable, a face-to-path contact map, hitter-level correlations, and year-to-year stability.
 
 ## Bat specs (optional)
@@ -59,6 +64,7 @@ player_id,name,length_in,weight_oz,source
   - Horizontal = spray − attack direction, with pull negative.
   - Plane match = attack angle + vertical approach angle at the plate.
 
+- **Batting stance.** Savant's batting stance export per season (`data/raw/leaderboards/batting_stance_{season}.csv`). Only `seasonStart`/`seasonEnd` filter it, and `minSwings=1` is needed for every hitter rather than qualifiers. Switch hitters' two sides are averaged by batted balls.
 - **Height and weight.** Listed roster values from the MLB Stats API (`data/raw/people.csv`, refreshed on every fetch). There is one current value per hitter, not a measurement by season.
 
 Full notes are in the tool's Method section. Caveat: unless a hitter is listed in `data/bat_specs.csv`, some of their EV over expected may be equipment.
@@ -89,10 +95,10 @@ To change the refresh schedule, edit the `cron` line in the workflow. To add bat
 ## Layout
 
 ```
-pipeline/fetch_statcast.py   Savant downloads + MLB height/weight -> data/raw/
+pipeline/fetch_statcast.py   Savant downloads (incl. batting stance) + MLB height/weight -> data/raw/
 pipeline/build.py            models + metrics -> web/data/
 data/bat_specs.csv           optional bat length/weight per hitter
-web/                         static site (D3 7.9.0 vendored)
+web/                         static site (D3 7.9.0 vendored); traits.js powers the body and stance sections
 wrangler.jsonc               Cloudflare static-assets config (serves web/)
 .github/workflows/deploy.yml scheduled build + Cloudflare deploy
 ```
