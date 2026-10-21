@@ -105,6 +105,56 @@
       <div class="table-foot"><button class="btn secondary sm" id="board-more" type="button">Show all</button><span class="muted" id="board-count"></span></div>
     </section>
 
+    <section class="card" id="estimator" aria-labelledby="est-title">
+      <div class="card-head">
+        <div>
+          <h2 id="est-title">Bat speed estimator</h2>
+          <p class="sub">No bat sensor? Estimate a hitter's average bat speed from exit velo readings, the pitch speed and the bat. Calibrated on how MLB hitters' exit velo relates to their Statcast bat speed (2024–26). Doesn't use the filters above.</p>
+        </div>
+        <button class="btn secondary sm" id="est-example" type="button">Try 20 real MLB swings</button>
+      </div>
+      <div class="est-grid">
+        <div class="est-inputs">
+          <label class="field">
+            <span>Exit velo readings (mph)</span>
+            <textarea id="est-evs" rows="6" spellcheck="false" placeholder="Paste or type readings, separated by commas, spaces or new lines. 20+ readings recommended."></textarea>
+          </label>
+          <p class="sub" id="est-parsed"></p>
+          <div class="est-row">
+            <div class="field">
+              <span>Pitch</span>
+              <div class="seg" role="group" aria-label="Pitch type" id="est-mode">
+                <button type="button" data-mode="tee" aria-pressed="true">Tee</button>
+                <button type="button" data-mode="pitched" aria-pressed="false">Pitched</button>
+              </div>
+            </div>
+            <label class="field">
+              <span>Pitch speed (mph, radar)</span>
+              <input id="est-ps" type="number" step="1" min="0" max="105" value="55" inputmode="decimal">
+            </label>
+          </div>
+          <div class="field">
+            <span>Bat length and weight</span>
+            <div class="range-pair">
+              <input id="est-len" type="number" step="0.5" min="26" max="37" value="34" inputmode="decimal" aria-label="Bat length in inches"><span class="muted">in</span>
+              <input id="est-wt" type="number" step="0.5" min="16" max="36" value="32" inputmode="decimal" aria-label="Bat weight in ounces"><span class="muted">oz</span>
+              <span class="muted" id="est-drop"></span>
+            </div>
+          </div>
+        </div>
+        <div class="est-output" id="est-output" aria-live="polite"></div>
+      </div>
+      <div class="chart" id="est-strip"></div>
+      <div class="legend">
+        <span class="key"><span class="swatch-dot" style="background:var(--select-fill);outline:2px solid var(--select-ring)"></span>Estimate</span>
+        <span class="key"><span class="swatch-line" style="height:10px;width:18px;border-radius:3px;background:var(--pos);opacity:.32"></span>80% range</span>
+        <span class="key"><span class="swatch-line" style="height:10px;width:18px;border-radius:3px;background:var(--pos);opacity:.14"></span>95% range</span>
+        <span class="key"><span class="swatch-line" style="width:1px;height:12px;background:var(--muted)"></span>MLB hitters (150+ batted balls)</span>
+        <span class="key">▼ Statcast measured (examples)</span>
+      </div>
+      <ul class="est-notes" id="est-notes"></ul>
+    </section>
+
     <section class="card" id="body" aria-labelledby="body-title">
       <div class="card-head">
         <div>

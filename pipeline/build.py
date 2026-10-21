@@ -595,6 +595,71 @@ def hitter_drivers(h: pd.DataFrame) -> list:
     return sorted(out, key=lambda x: -abs(x["r_evoe"]))
 
 
+# ---------------------------------------------------------------- bat speed estimator
+
+EST_K = [5, 8, 10, 15, 20, 30, 50, 75, 100, 150]
+EST_REPS = 6
+
+
+def estimator_calibration(d: pd.DataFrame, rng) -> dict:
+    """Calibrate 'average bat speed from exit velo readings' on MLB hitter-seasons.
+
+    The line itself comes from full-season data: each hitter's EV90, put on a common pitch speed
+    with the collision physics (EV moves q mph per mph of pitch at the plate), against their
+    average bat speed. Its slope (~0.85) matches the physics value 1 / (1 + q). It deliberately
+    does NOT shrink small samples toward the MLB average, so it stays usable for hitters far from
+    MLB (youth, amateur). For each sample size k, random draws of k batted balls give the EV90
+    bias to remove and the residual spread that becomes the error range. A fit on 2024-25
+    applied to 2026 draws records out-of-sample accuracy."""
+    q0 = float(collision_q(*DEFAULT_BAT))
+    full = d[(d.season >= 2024) & d.plate_speed.notna()]
+    ref_plate = float(full.plate_speed.mean())
+    groups = [g for _, g in full.groupby(["season", "batter"]) if len(g) >= MIN_BBE_STATS]
+    adj = lambda ev90, plate: ev90 + q0 * (ref_plate - plate)  # noqa: E731
+    base = pd.DataFrame([{
+        "season": g.season.iloc[0], "bs": g.bat_speed.mean(),
+        "x": adj(np.percentile(g.launch_speed, 90), g.plate_speed.mean()),
+    } for g in groups])
+    b, a = np.polyfit(base.x, base.bs, 1)
+    trb = base.season < 2026
+    b_tr, a_tr = np.polyfit(base.x[trb], base.bs[trb], 1)
+    out = {"a": round(float(a), 4), "b": round(float(b), 4), "k": EST_K, "bias": [], "rmse": [], "lo80": [],
+           "hi80": [], "lo95": [], "hi95": [], "within2": [], "test_rmse": []}
+    for k in EST_K:
+        x_k, x_full, y, seas = [], [], [], []
+        for g, row in zip(groups, base.itertuples()):
+            ev, pl = g.launch_speed.values, g.plate_speed.values
+            for _ in range(EST_REPS):
+                idx = rng.choice(len(g), k, replace=False)
+                x_k.append(adj(np.percentile(ev[idx], 90), pl[idx].mean()))
+                x_full.append(row.x)
+                y.append(row.bs)
+                seas.append(row.season)
+        x_k, x_full, y, seas = map(np.array, (x_k, x_full, y, seas))
+        bias = float(np.mean(x_k - x_full))  # small samples read EV90 a little low/high on average
+        res = y - (a + b * (x_k - bias))
+        te = seas == 2026
+        bias_tr = float(np.mean((x_k - x_full)[~te]))
+        res_te = y[te] - (a_tr + b_tr * (x_k[te] - bias_tr))
+        for key, v in [("bias", bias), ("rmse", np.sqrt(np.mean(res**2))),
+                       ("lo80", np.percentile(res, 10)), ("hi80", np.percentile(res, 90)),
+                       ("lo95", np.percentile(res, 2.5)), ("hi95", np.percentile(res, 97.5)),
+                       ("within2", np.mean(np.abs(res) <= 2)), ("test_rmse", np.sqrt(np.mean(res_te**2)))]:
+            out[key].append(round(float(v), 4))
+    latest = full[full.season == full.season.max()]
+    hitter_bs = latest.groupby("batter").bat_speed.agg(["mean", "size"])
+    hitter_bs = hitter_bs[hitter_bs["size"] >= MIN_BBE_STATS]["mean"]
+    out.update({
+        "q0": round(q0, 4), "ref_plate": round(ref_plate, 2),
+        "plate_factor": round(float(np.nanmedian(full.plate_speed / full.release_speed)), 4),
+        "hitter_bs": sorted(round(float(v), 1) for v in hitter_bs), "hitter_season": int(full.season.max()),
+        "n_hitter_seasons": len(groups),
+    })
+    print(f"estimator: bs = {a:.2f} + {b:.3f} * EV90_adj;",
+          {k: (round(out["bias"][i], 2), round(out["rmse"][i], 2), round(out["test_rmse"][i], 2)) for i, k in enumerate(EST_K)})
+    return out
+
+
 # ---------------------------------------------------------------- export
 
 
@@ -693,6 +758,7 @@ def main() -> None:
     h = attach_people(h)
     h = attach_stance(h, d)
     stab = stability(h, d, rng)
+    est = estimator_calibration(d, rng)
     print("stability", json.dumps(stab, indent=1))
 
     drivers = {
@@ -736,7 +802,9 @@ def main() -> None:
         "bat": {
             "default": list(DEFAULT_BAT), "q_default": r(float(collision_q(*DEFAULT_BAT)), 4),
             "n_specs": len(specs), "cor": BAT_COR, "ball_oz": BALL_OZ,
+            "balance_frac": BALANCE_FRAC, "gyration_frac": GYRATION_FRAC,
         },
+        "estimator": est,
         "model": {s: {"knots": models[s].knots.round(2).tolist(), "beta": models[s].beta.round(5).tolist()} for s in models},
     }
     (OUT / "meta.json").write_text(json.dumps(meta, separators=(",", ":")))

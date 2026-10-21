@@ -355,3 +355,30 @@ table.corr-matrix { border-collapse: separate; border-spacing: 4px; font-variant
 .player-head .range-pair { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .player-head select { min-width: 0; max-width: 100%; flex: 1 1 180px; }
 @media (max-width: 640px) { .player-head > div { min-width: 0; max-width: 100%; } }
+
+/* ---------- bat speed estimator */
+.est-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .est-grid { grid-template-columns: minmax(0, 1fr); } }
+.est-inputs { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.est-row { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end; }
+.est-inputs textarea {
+  width: 100%; resize: vertical; min-height: 120px;
+  font: 500 15px/1.5 var(--body); font-variant-numeric: tabular-nums;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: var(--r-sm); padding: 10px 12px;
+}
+.est-inputs textarea:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+.est-inputs input:disabled { opacity: .45; }
+.est-output { background: var(--surface-2); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.est-output .label { font: 700 13px/1.1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.est-value { font: 900 56px/1 var(--display); color: var(--ink); }
+.est-value small { font-size: 22px; font-weight: 700; margin-left: 6px; color: var(--muted); }
+.est-range { font-size: 15px; }
+.est-actual { background: var(--acid-pale); color: #3d4a10; border-radius: var(--r-sm); padding: 8px 10px; font-size: 14px; }
+:root[data-theme="dark"] .est-actual { background: #26331a; color: #e3f2a6; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .est-actual { background: #26331a; color: #e3f2a6; } }
+.est-steps td { padding: 5px 6px; font-size: 13px; }
+#est-strip { margin-top: 18px; }
+.est-notes { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; max-width: 90ch; }
+.est-notes li { margin: 3px 0; }
+.est-steps { width: 100%; table-layout: auto; }
+.est-steps td.l { white-space: normal; }

@@ -25,6 +25,7 @@ python3 -m http.server 8765 --directory web   # open http://localhost:8765
   - Same-speed comps.
 - **Compare**: overlays a comp's swings and pairs matched swings for side-by-side video. Pairs are matched on bat speed, pitch type, pitch speed and location. *Closest hard contact* restricts the comp's side to their own best contact.
 - **Watch**: resolves the pitch's play id via the MLB Stats API and opens the Baseball Savant clip.
+- **Bat speed estimator**: paste exit velo readings, pick tee or a pitch speed, and set the bat. It returns an estimated average bat speed with 80% and 95% ranges, where it ranks among MLB hitters, and the step-by-step math. *Try 20 real MLB swings* fills in a random hitter's batted balls so you can compare the estimate with their Statcast bat speed.
 - **Height, weight and the swing**:
   - A correlation matrix of listed height, weight, and weight ÷ height (pounds per inch) against bat speed, avg EV, EV90 and EV over expected. Click a cell to plot that pair.
   - A scatter with a straight-line fit. Dots are colored by how far each hitter sits above or below the line, and 2+ SD outliers are outlined and labeled.
@@ -65,6 +66,11 @@ player_id,name,length_in,weight_oz,source
   - Plane match = attack angle + vertical approach angle at the plate.
 
 - **Batting stance.** Savant's batting stance export per season (`data/raw/leaderboards/batting_stance_{season}.csv`). Only `seasonStart`/`seasonEnd` filter it, and `minSwings=1` is needed for every hitter rather than qualifiers. Switch hitters' two sides are averaged by batted balls.
+- **Bat speed estimator.** Calibrated in `build.py` (`estimator_calibration`) on 2024–26 hitter-seasons with 150+ batted balls:
+  - The line is average bat speed ≈ −19.3 + 0.878 × EV90, with EV90 put on a common MLB pitch speed. Its slope sits close to the physics value 1 / (1 + q) ≈ 0.83, and it deliberately doesn't shrink small samples toward the MLB average, so it stays usable for youth and amateur hitters.
+  - For each sample size, random draws give the small-sample EV90 correction and the error range.
+  - The typical miss is about ±4.1 mph with 5 readings, ±2.3 with 20, ±1.6 with 50 and ±1.4 with 100. A fit on 2024–25 tested on 2026 is within 0.2 mph of those.
+  - Tee and slow-pitch readings are converted with the collision physics, and bat size uses the same bat model as *Bat-adj*. Bat material isn't modeled.
 - **Height and weight.** Listed roster values from the MLB Stats API (`data/raw/people.csv`, refreshed on every fetch). There is one current value per hitter, not a measurement by season.
 
 Full notes are in the tool's Method section. Caveat: unless a hitter is listed in `data/bat_specs.csv`, some of their EV over expected may be equipment.

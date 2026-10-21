@@ -5,6 +5,7 @@ import { hitterScatter, driverMultiples, contactMap, correlationBars } from "./c
 import { renderPlayer, swingsFromRecord } from "./player.js";
 import { renderBody, sizeResiduals, BODY_X, BODY_Y } from "./body.js";
 import { renderStance, STANCE_X, STANCE_Y, angle as stanceAngle } from "./stance.js";
+import { initEstimator } from "./estimator.js";
 
 const $ = (id) => document.getElementById(id);
 const PEER_BAND = 1.5;
@@ -17,7 +18,7 @@ const state = {
   stanceX: "st_off", stanceY: "bs",
 };
 
-let META, HITTERS, DRIVERS;
+let META, HITTERS, DRIVERS, ESTIMATOR;
 const shardCache = new Map();
 
 /* ------------------------------------------------------------------ url state */
@@ -71,6 +72,19 @@ function shardFor(id) {
 async function swingsOf(id) {
   const shard = await shardFor(id);
   return swingsFromRecord(shard[String(id)], state.season);
+}
+
+/** k random competitive batted balls from a random MLB hitter, to check the estimator against Statcast. */
+async function estimatorExample(k) {
+  const season = META.estimator.hitter_season;
+  const pool = HITTERS.filter((h) => h.season === season && h.n >= META.minBbeStats);
+  const h = pool[Math.floor(Math.random() * pool.length)];
+  const shard = await shardFor(h.id);
+  const pick = d3.shuffle(swingsFromRecord(shard[String(h.id)], season)).slice(0, k);
+  return {
+    name: h.name, evs: pick.map((s) => s.ev), pitch: d3.mean(pick, (s) => s.ps),
+    length: h.bat_len ?? 34, weight: h.bat_oz ?? 32, actual: h.bs,
+  };
 }
 
 /** Hitters for the season + min batted balls (the peer pool), with peer percentiles. */
@@ -299,6 +313,8 @@ function renderMethod() {
     p("Length's benefit (a longer lever) is already inside the measured bat speed. At the measuring point it also lowers effective mass, so a longer bat at the same weight reads as slightly less efficient. The model scales one bat shape, so end-loaded or balanced models will differ somewhat."),
     el("h3", {}, "Height and weight"),
     p("Listed height and weight come from the MLB Stats API roster record: one current value per hitter, not a measurement by season. Weight ÷ height is pounds per inch, so higher means more mass for the frame. The body section correlates these with each hitter's averages, using whatever filters are set. Outliers are hitters furthest above or below the straight-line fit, in standard deviations of the misses. Spd vs size and EV vs size in the leaderboard use height and weight together."),
+    el("h3", {}, "Bat speed estimator"),
+    p(`The estimator maps the 90th-percentile exit velo of the readings to average bat speed (Statcast sweet-spot bat speed). The line comes from ${fmt.int(META.estimator.n_hitter_seasons)} MLB hitter-seasons with 150+ batted balls (2024–26): bat speed ≈ ${fmt.f2(META.estimator.a)} + ${d3.format(".3f")(META.estimator.b)} × EV90, after putting each hitter's EV90 on a common pitch speed with the collision physics. Readings from a tee or slower pitches are converted the same way (exit velo moves about ${fmt.f2(META.estimator.q0)} mph per mph of pitch speed at the plate). Bat size uses the same bat model as the bat-adjusted column. Small samples read EV90 low, so a correction and a wider error range come from random draws of each sample size. The estimate is not pulled toward the MLB average, so it stays usable for hitters far from MLB, but it assumes their contact quality looks like MLB hitters', and bat material isn't modeled.`),
     el("h3", {}, "Batting stance"),
     p("Savant's batting stance comes from Hawk-Eye pose tracking, measured one second before the pitch is released. Depth is inches from the front of the plate back to the midpoint of the hips. Distance off the plate is from its inside edge. Foot separation is inches between the feet. Stance angle is the line through the feet relative to straight at the pitcher, negative = open and positive = closed. Values are per season; switch hitters are averaged across both sides by their batted balls, and the all-seasons view averages seasons by batted balls. The summary checks the strongest stance link against height, since bigger hitters stand differently and also swing faster."),
     el("h3", {}, "Face-to-path"),
@@ -424,7 +440,7 @@ function bindControls() {
   });
 }
 
-function renderAll() { renderTiles(); renderMain(); renderDrivers(); }
+function renderAll() { renderTiles(); renderMain(); renderDrivers(); if (ESTIMATOR) ESTIMATOR.redraw(); }
 
 async function init() {
   try {
@@ -443,6 +459,7 @@ async function init() {
   syncControls();
   bindControls();
   renderMethod();
+  ESTIMATOR = initEstimator(META, { getExample: estimatorExample });
   renderAll();
 }
 
